@@ -1,0 +1,869 @@
+#+TITLE: CS:APP Bomb disposal specialist
+#+OPTIONS: toc:nil
+
+* Intro
+
+To start this journey, you should have some equipment.
+Following are essential:
+#+begin_example
+0. *WARNING*: Please run all the commands under GNU/Linux, other platforms
+              haven't been tested.
+1. GDB: The GNU Project Debugger, Please use the 64-bit version.
+        In this tour, I will use GNU gdb 11.1 overall.
+2. objdump: Display information from object files.
+#+end_example
+
+Here is the source code of C =bomb.c= without head information:
+#+begin_src c
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include "support.h"
+  #include "phases.h"
+
+  /*
+   ,* Note to self: Remember to erase this file so my victims will have no
+   ,* idea what is going on, and so they will all blow up in a
+   ,* spectaculary fiendish explosion. -- Dr. Evil
+   ,*/
+
+  FILE *infile;
+
+  int main(int argc, char *argv[])
+  {
+      char *input;
+
+      /* Note to self: remember to port this bomb to Windows and put a
+       ,* fantastic GUI on it. */
+
+      /* When run with no arguments, the bomb reads its input lines
+       ,* from standard input. */
+      if (argc == 1) {
+          infile = stdin;
+      }
+
+      /* When run with one argument <file>, the bomb reads from <file>
+       ,* until EOF, and then switches to standard input. Thus, as you
+       ,* defuse each phase, you can add its defusing string to <file> and
+       ,* avoid having to retype it. */
+      else if (argc == 2) {
+          if (!(infile = fopen(argv[1], "r"))) {
+              printf("%s: Error: Couldn't open %s\n", argv[0], argv[1]);
+              exit(8);
+          }
+      }
+
+      /* You can't call the bomb with more than 1 command line argument. */
+      else {
+          printf("Usage: %s [<input_file>]\n", argv[0]);
+          exit(8);
+      }
+
+      /* Do all sorts of secret stuff that makes the bomb harder to defuse. */
+      initialize_bomb();
+
+      printf("Welcome to my fiendish little bomb. You have 6 phases with\n");
+      printf("which to blow yourself up. Have a nice day!\n");
+
+      /* Hmm...  Six phases must be more secure than one phase! */
+      input = read_line();             /* Get input                   */
+      phase_1(input);                  /* Run the phase               */
+      phase_defused();                 /* Drat!  They figured it out!
+                                        ,* Let me know how they did it. */
+      printf("Phase 1 defused. How about the next one?\n");
+
+      /* The second phase is harder.  No one will ever figure out
+       ,* how to defuse this... */
+      input = read_line();
+      phase_2(input);
+      phase_defused();
+      printf("That's number 2.  Keep going!\n");
+
+      /* I guess this is too easy so far.  Some more complex code will
+       ,* confuse people. */
+      input = read_line();
+      phase_3(input);
+      phase_defused();
+      printf("Halfway there!\n");
+
+      /* Oh yeah?  Well, how good is your math?  Try on this saucy problem! */
+      input = read_line();
+      phase_4(input);
+      phase_defused();
+      printf("So you got that one.  Try this one.\n");
+
+      /* Round and 'round in memory we go, where we stop, the bomb blows! */
+      input = read_line();
+      phase_5(input);
+      phase_defused();
+      printf("Good work!  On to the next...\n");
+
+      /* This phase will never be used, since no one will get past the
+       ,* earlier ones.  But just in case, make this one extra hard. */
+      input = read_line();
+      phase_6(input);
+      phase_defused();
+
+      /* Wow, they got it!  But isn't something... missing?  Perhaps
+       ,* something they overlooked?  Mua ha ha ha ha! */
+
+      return 0;
+  }
+
+#+end_src
+
+At the very beginning of this adventure, we need disassemble the
+binary file first.
+#+begin_src sh
+    # bash-5.1$ cd bomb/
+    # bash-5.1$ ls
+    # README	README.html  README.org  bomb  bomb.c
+    # bash-5.1$ objdump -dS bomb > bomb.s
+
+    cd /path/to/bomb/
+    objdump -dS bomb > bomb.s
+#+end_src
+
+Then you will get =bomb.s= like this:
+#+begin_src asm
+
+  bomb:     file format elf64-x86-64
+
+
+  Disassembly of section .init:
+
+  0000000000400ac0 <_init>:
+    400ac0:	48 83 ec 08             sub    $0x8,%rsp
+    400ac4:	e8 f3 01 00 00          callq  400cbc <call_gmon_start>
+    400ac9:	48 83 c4 08             add    $0x8,%rsp
+    400acd:	c3                      retq
+          .
+          .
+          .
+
+  Disassembly of section .plt:
+
+  0000000000400ad0 <.plt>:
+    400ad0:	ff 35 1a 25 20 00       pushq  0x20251a(%rip)        # 602ff0 <_GLOBAL_OFFSET_TABLE_+0x8>
+    400ad6:	ff 25 1c 25 20 00       jmpq   *0x20251c(%rip)        # 602ff8 <_GLOBAL_OFFSET_TABLE_+0x10>
+    400adc:	0f 1f 40 00             nopl   0x0(%rax)
+          .
+          .
+          .
+
+  Disassembly of section .text:
+
+  0000000000400c90 <_start>:
+    400c90:	31 ed                   xor    %ebp,%ebp
+    400c92:	49 89 d1                mov    %rdx,%r9
+    400c95:	5e                      pop    %rsi
+    400c96:	48 89 e2                mov    %rsp,%rdx
+    400c99:	48 83 e4 f0             and    $0xfffffffffffffff0,%rsp
+    400c9d:	50                      push   %rax
+    400c9e:	54                      push   %rsp
+    400c9f:	49 c7 c0 a0 22 40 00    mov    $0x4022a0,%r8
+    400ca6:	48 c7 c1 10 22 40 00    mov    $0x402210,%rcx
+    400cad:	48 c7 c7 a0 0d 40 00    mov    $0x400da0,%rdi
+    400cb4:	e8 b7 fe ff ff          callq  400b70 <__libc_start_main@plt>
+    400cb9:	f4                      hlt
+    400cba:	90                      nop
+    400cbb:	90                      nop
+          .
+          .
+          .
+
+  Disassembly of section .fini:
+
+  00000000004022a4 <_fini>:
+    4022a4:	48 83 ec 08             sub    $0x8,%rsp
+    4022a8:	48 83 c4 08             add    $0x8,%rsp
+    4022ac:	c3                      retq
+
+#+end_src
+
+* Adventure start
+
+** Bomb 1
+
+First of all, let's expose the bomb-1's code in =bomb.c=:
+#+begin_src c
+  char *input;
+
+  /* Do all sorts of secret stuff that makes the bomb harder to defuse. */
+  initialize_bomb();
+
+  /* Hmm...  Six phases must be more secure than one phase! */
+  input = read_line();             /* Get input                   */
+  phase_1(input);                  /* Run the phase               */
+  phase_defused();                 /* Drat!  They figured it out!
+                                    ,* Let me know how they did it. */
+  printf("Phase 1 defused. How about the next one?\n");
+#+end_src
+
+Here we can notice that =phase_1(input)= is the core function of bomb-1.
+
+Next, what about =phase_1(char *)= assembly code looks like(in call order)?
+#+begin_src asm
+  0000000000400da0 <main>:
+    400e32:	e8 67 06 00 00          callq  40149e <read_line>
+    400e37:	48 89 c7                mov    %rax,%rdi ; input -> %rdi
+    400e3a:	e8 a1 00 00 00          callq  400ee0 <phase_1> ; still
+    400e3f:	e8 80 07 00 00          callq  4015c4 <phase_defused>
+    400e44:	bf a8 23 40 00          mov    $0x4023a8,%edi
+    400e49:	e8 c2 fc ff ff          callq  400b10 <puts@plt>
+
+  0000000000400ee0 <phase_1>:
+    400ee0:	48 83 ec 08             sub    $0x8,%rsp
+    400ee4:	be 00 24 40 00          mov    $0x402400,%esi ; phase 1
+    400ee9:	e8 4a 04 00 00          callq  401338 <strings_not_equal>
+    400eee:	85 c0                   test   %eax,%eax
+    400ef0:	74 05                   je     400ef7 <phase_1+0x17>
+    400ef2:	e8 43 05 00 00          callq  40143a <explode_bomb>
+    400ef7:	48 83 c4 08             add    $0x8,%rsp
+    400efb:	c3                      retq
+
+  0000000000401338 <strings_not_equal>:
+    401338:	41 54                   push   %r12
+    40133a:	55                      push   %rbp
+    40133b:	53                      push   %rbx
+    40133c:	48 89 fb                mov    %rdi,%rbx ; input
+    40133f:	48 89 f5                mov    %rsi,%rbp
+    401342:	e8 d4 ff ff ff          callq  40131b <string_length>
+    401347:	41 89 c4                mov    %eax,%r12d ; input's length
+    40134a:	48 89 ef                mov    %rbp,%rdi
+    40134d:	e8 c9 ff ff ff          callq  40131b <string_length>
+    401352:	ba 01 00 00 00          mov    $0x1,%edx
+    401357:	41 39 c4                cmp    %eax,%r12d
+    40135a:	75 3f                   jne    40139b <strings_not_equal+0x63>
+    40135c:	0f b6 03                movzbl (%rbx),%eax
+    40135f:	84 c0                   test   %al,%al
+    401361:	74 25                   je     401388 <strings_not_equal+0x50>
+    401363:	3a 45 00                cmp    0x0(%rbp),%al
+    401366:	74 0a                   je     401372 <strings_not_equal+0x3a>
+    401368:	eb 25                   jmp    40138f <strings_not_equal+0x57>
+    40136a:	3a 45 00                cmp    0x0(%rbp),%al
+    40136d:	0f 1f 00                nopl   (%rax)
+    401370:	75 24                   jne    401396 <strings_not_equal+0x5e>
+    401372:	48 83 c3 01             add    $0x1,%rbx
+    401376:	48 83 c5 01             add    $0x1,%rbp
+    40137a:	0f b6 03                movzbl (%rbx),%eax
+    40137d:	84 c0                   test   %al,%al
+    40137f:	75 e9                   jne    40136a <strings_not_equal+0x32>
+    401381:	ba 00 00 00 00          mov    $0x0,%edx
+    401386:	eb 13                   jmp    40139b <strings_not_equal+0x63>
+    401388:	ba 00 00 00 00          mov    $0x0,%edx
+    40138d:	eb 0c                   jmp    40139b <strings_not_equal+0x63>
+    40138f:	ba 01 00 00 00          mov    $0x1,%edx
+    401394:	eb 05                   jmp    40139b <strings_not_equal+0x63>
+    401396:	ba 01 00 00 00          mov    $0x1,%edx
+    40139b:	89 d0                   mov    %edx,%eax
+    40139d:	5b                      pop    %rbx
+    40139e:	5d                      pop    %rbp
+    40139f:	41 5c                   pop    %r12
+    4013a1:	c3                      retq
+
+  000000000040131b <string_length>:
+    40131b:	80 3f 00                cmpb   $0x0,(%rdi)
+    40131e:	74 12                   je     401332 <string_length+0x17>
+    401320:	48 89 fa                mov    %rdi,%rdx
+    401323:	48 83 c2 01             add    $0x1,%rdx
+    401327:	89 d0                   mov    %edx,%eax
+    401329:	29 f8                   sub    %edi,%eax
+    40132b:	80 3a 00                cmpb   $0x0,(%rdx)
+    40132e:	75 f3                   jne    401323 <string_length+0x8>
+    401330:	f3 c3                   repz retq
+    401332:	b8 00 00 00 00          mov    $0x0,%eax
+    401337:	c3                      retq
+#+end_src
+
+Thinks a lot, by analyzing above code blocks, we found that register %rax stored the secret of bomb-1.\\
+To make sense of what does %rax stored, we need GDB now!
+#+begin_example
+  bash-5.1$ ls
+  README  README.org  bomb  bomb.c  bomb.s
+  bash-5.1$ gdb --tui bomb
+  ┌─bomb.c───────────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │       28  /*                                                                                                 │
+  │       29   * Note to self: Remember to erase this file so my victims will have no                            │
+  │       30   * idea what is going on, and so they will all blow up in a                                        │
+  │       31   * spectaculary fiendish explosion. -- Dr. Evil                                                    │
+  │       32   */                                                                                                │
+  │       33                                                                                                     │
+  │       34  FILE *infile;                                                                                      │
+  │       35                                                                                                     │
+  │       36  int main(int argc, char *argv[])                                                                   │
+  │       37  {                                                                                                  │
+  │       38      char *input;                                                                                   │
+  │       39                                                                                                     │
+  │       40      /* Note to self: remember to port this bomb to Windows and put a                               │
+  │       41       * fantastic GUI on it. */                                                                     │
+  │       42                                                                                                     │
+  │       43      /* When run with no arguments, the bomb reads its input lines                                  │
+  └──────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+  exec No process In:                                                                                L??   PC: ??
+  --Type <RET> for more, q to quit, c to continue without paging--For bug reporting instructions, please see:
+  <https://bugs.gentoo.org/>.
+  Find the GDB manual and other documentation resources online at:
+      <http://www.gnu.org/software/gdb/documentation/>.
+
+  For help, type "help".
+  Type "apropos word" to search for commands related to "word"...
+  Reading symbols from bomb...
+  (gdb) l 72
+  (gdb) b 74
+  Breakpoint 1 at 0x400e37: file bomb.c, line 74.
+  (gdb) r
+  Starting program: /home/chen/projects/CSAPP-labs/bomb/bomb
+  Welcome to my fiendish little bomb. You have 6 phases with
+  which to blow yourself up. Have a nice day!
+  Just for guessing, don't take it seriously!
+
+  ┌─bomb.c───────────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │       71                                                                                                     │
+  │       72      /* Hmm...  Six phases must be more secure than one phase! */                                   │
+  │       73      input = read_line();             /* Get input                   */                             │
+  │       74      phase_1(input);                  /* Run the phase               */                             │
+  │       75      phase_defused();                 /* Drat!  They figured it out!                                │
+  │       76                                        * Let me know how they did it. */                            │
+  │       77      printf("Phase 1 defused. How about the next one?\n");                                          │
+  │       78                                                                                                     │
+  │  >    79      phase_1(input);                  /* Run the phase               */                             │
+  │       80       * how to defuse this... */                                                                    │
+  │       81      input = read_line();                                                                           │
+  │       82      phase_2(input);                                                                                │
+  └──────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+  exec No process In:                                                                                L??   PC: ??
+  For help, type "help".
+  Type "apropos word" to search for commands related to "word"...
+  native process 6289 In: main
+  Breakpoint 1 at 0x400e37: file bomb.c, line 74.
+  (gdb) r
+  Starting program: /home/chen/projects/CSAPP-labs/bomb/bomb
+  Welcome to my fiendish little bomb. You have 6 phases with
+  which to blow yourself up. Have a nice day!
+  Just for guessing, don't take it seriously!
+
+  Breakpoint 1, main (argc=<optimized out>, argv=<optimized out>) at bomb.c:74
+
+  (gdb) x $rax
+  0x603780 <input_strings>:	0x7473754a
+  (gdb) x/sb $rax
+  0x603780 <input_strings>:	"Just for guessing, don't take it seriously!"
+  (gdb) disassemble
+  Dump of assembler code for function main:
+     0x0000000000400da0 <+0>:	push   %rbx
+     0x0000000000400da1 <+1>:	cmp    $0x1,%edi
+     0x0000000000400da4 <+4>:	jne    0x400db6 <main+22>
+     0x0000000000400da6 <+6>:	mov    0x20299b(%rip),%rax        # 0x603748 <stdin@@GLIBC_2.2.5>
+     0x0000000000400dad <+13>:	mov    %rax,0x2029b4(%rip)        # 0x603768 <infile>
+     0x0000000000400db4 <+20>:	jmp    0x400e19 <main+121>
+     0x0000000000400db6 <+22>:	mov    %rsi,%rbx
+     0x0000000000400db9 <+25>:	cmp    $0x2,%edi
+     0x0000000000400dbc <+28>:	jne    0x400df8 <main+88>
+     0x0000000000400dbe <+30>:	mov    0x8(%rsi),%rdi
+     0x0000000000400dc2 <+34>:	mov    $0x4022b4,%esi
+     0x0000000000400dc7 <+39>:	call   0x400c10 <fopen@plt>
+     0x0000000000400dcc <+44>:	mov    %rax,0x202995(%rip)        # 0x603768 <infile>
+     0x0000000000400dd3 <+51>:	test   %rax,%rax
+     0x0000000000400dd6 <+54>:	jne    0x400e19 <main+121>
+     0x0000000000400dd8 <+56>:	mov    0x8(%rbx),%rcx
+     0x0000000000400ddc <+60>:	mov    (%rbx),%rdx
+     0x0000000000400ddf <+63>:	mov    $0x4022b6,%esi
+     0x0000000000400de4 <+68>:	mov    $0x1,%edi
+     0x0000000000400de9 <+73>:	call   0x400c00 <__printf_chk@plt>
+     0x0000000000400dee <+78>:	mov    $0x8,%edi
+     0x0000000000400df3 <+83>:	call   0x400c20 <exit@plt>
+     0x0000000000400df8 <+88>:	mov    (%rsi),%rdx
+     0x0000000000400dfb <+91>:	mov    $0x4022d3,%esi
+     0x0000000000400e00 <+96>:	mov    $0x1,%edi
+     0x0000000000400e05 <+101>:	mov    $0x0,%eax
+     0x0000000000400e0a <+106>:	call   0x400c00 <__printf_chk@plt>
+     0x0000000000400e0f <+111>:	mov    $0x8,%edi
+     0x0000000000400e14 <+116>:	call   0x400c20 <exit@plt>
+     0x0000000000400e19 <+121>:	call   0x4013a2 <initialize_bomb>
+     0x0000000000400e1e <+126>:	mov    $0x402338,%edi
+     0x0000000000400e23 <+131>:	call   0x400b10 <puts@plt>
+     0x0000000000400e28 <+136>:	mov    $0x402378,%edi
+     0x0000000000400e2d <+141>:	call   0x400b10 <puts@plt>
+     0x0000000000400e32 <+146>:	call   0x40149e <read_line>
+  => 0x0000000000400e37 <+151>:	mov    %rax,%rdi
+     0x0000000000400e3a <+154>:	call   0x400ee0 <phase_1>
+     0x0000000000400e3f <+159>:	call   0x4015c4 <phase_defused>
+     0x0000000000400e44 <+164>:	mov    $0x4023a8,%edi
+     0x0000000000400e49 <+169>:	call   0x400b10 <puts@plt>
+     0x0000000000400e4e <+174>:	call   0x40149e <read_line>
+     0x0000000000400e53 <+179>:	mov    %rax,%rdi
+     0x0000000000400e56 <+182>:	call   0x400efc <phase_2>
+     0x0000000000400e5b <+187>:	call   0x4015c4 <phase_defused>
+     0x0000000000400e60 <+192>:	mov    $0x4022ed,%edi
+     0x0000000000400e65 <+197>:	call   0x400b10 <puts@plt>
+     0x0000000000400e6a <+202>:	call   0x40149e <read_line>
+     0x0000000000400e6f <+207>:	mov    %rax,%rdi
+     0x0000000000400e72 <+210>:	call   0x400f43 <phase_3>
+     0x0000000000400e77 <+215>:	call   0x4015c4 <phase_defused>
+     0x0000000000400e7c <+220>:	mov    $0x40230b,%edi
+     0x0000000000400e81 <+225>:	call   0x400b10 <puts@plt>
+     0x0000000000400e86 <+230>:	call   0x40149e <read_line>
+     0x0000000000400e8b <+235>:	mov    %rax,%rdi
+     0x0000000000400e8e <+238>:	call   0x40100c <phase_4>
+     0x0000000000400e93 <+243>:	call   0x4015c4 <phase_defused>
+     0x0000000000400e98 <+248>:	mov    $0x4023d8,%edi
+     0x0000000000400e9d <+253>:	call   0x400b10 <puts@plt>
+     0x0000000000400ea2 <+258>:	call   0x40149e <read_line>
+     0x0000000000400ea7 <+263>:	mov    %rax,%rdi
+     0x0000000000400eaa <+266>:	call   0x401062 <phase_5>
+     0x0000000000400eaf <+271>:	call   0x4015c4 <phase_defused>
+     0x0000000000400eb4 <+276>:	mov    $0x40231a,%edi
+     0x0000000000400eb9 <+281>:	call   0x400b10 <puts@plt>
+     0x0000000000400ebe <+286>:	call   0x40149e <read_line>
+     0x0000000000400ec3 <+291>:	mov    %rax,%rdi
+     0x0000000000400ec6 <+294>:	call   0x4010f4 <phase_6>
+     0x0000000000400ecb <+299>:	call   0x4015c4 <phase_defused>
+     0x0000000000400ed0 <+304>:	mov    $0x0,%eax
+     0x0000000000400ed5 <+309>:	pop    %rbx
+     0x0000000000400ed6 <+310>:	ret
+  End of assembler dump.
+  (gdb) si
+  0x0000000000400e3a	74	    phase_1(input);                  /* Run the phase               */
+  (gdb) disassemble
+  Dump of assembler code for function main:
+     0x0000000000400da0 <+0>:	push   %rbx
+     0x0000000000400da1 <+1>:	cmp    $0x1,%edi
+     0x0000000000400da4 <+4>:	jne    0x400db6 <main+22>
+     0x0000000000400da6 <+6>:	mov    0x20299b(%rip),%rax        # 0x603748 <stdin@@GLIBC_2.2.5>
+     0x0000000000400dad <+13>:	mov    %rax,0x2029b4(%rip)        # 0x603768 <infile>
+     0x0000000000400db4 <+20>:	jmp    0x400e19 <main+121>
+     0x0000000000400db6 <+22>:	mov    %rsi,%rbx
+     0x0000000000400db9 <+25>:	cmp    $0x2,%edi
+     0x0000000000400dbc <+28>:	jne    0x400df8 <main+88>
+     0x0000000000400dbe <+30>:	mov    0x8(%rsi),%rdi
+     0x0000000000400dc2 <+34>:	mov    $0x4022b4,%esi
+     0x0000000000400dc7 <+39>:	call   0x400c10 <fopen@plt>
+     0x0000000000400dcc <+44>:	mov    %rax,0x202995(%rip)        # 0x603768 <infile>
+     0x0000000000400dd3 <+51>:	test   %rax,%rax
+     0x0000000000400dd6 <+54>:	jne    0x400e19 <main+121>
+     0x0000000000400dd8 <+56>:	mov    0x8(%rbx),%rcx
+     0x0000000000400ddc <+60>:	mov    (%rbx),%rdx
+     0x0000000000400ddf <+63>:	mov    $0x4022b6,%esi
+     0x0000000000400de4 <+68>:	mov    $0x1,%edi
+     0x0000000000400de9 <+73>:	call   0x400c00 <__printf_chk@plt>
+     0x0000000000400dee <+78>:	mov    $0x8,%edi
+     0x0000000000400df3 <+83>:	call   0x400c20 <exit@plt>
+     0x0000000000400df8 <+88>:	mov    (%rsi),%rdx
+     0x0000000000400dfb <+91>:	mov    $0x4022d3,%esi
+     0x0000000000400e00 <+96>:	mov    $0x1,%edi
+     0x0000000000400e05 <+101>:	mov    $0x0,%eax
+     0x0000000000400e0a <+106>:	call   0x400c00 <__printf_chk@plt>
+     0x0000000000400e0f <+111>:	mov    $0x8,%edi
+     0x0000000000400e14 <+116>:	call   0x400c20 <exit@plt>
+     0x0000000000400e19 <+121>:	call   0x4013a2 <initialize_bomb>
+     0x0000000000400e1e <+126>:	mov    $0x402338,%edi
+     0x0000000000400e23 <+131>:	call   0x400b10 <puts@plt>
+     0x0000000000400e28 <+136>:	mov    $0x402378,%edi
+     0x0000000000400e2d <+141>:	call   0x400b10 <puts@plt>
+     0x0000000000400e32 <+146>:	call   0x40149e <read_line>
+     0x0000000000400e37 <+151>:	mov    %rax,%rdi
+  => 0x0000000000400e3a <+154>:	call   0x400ee0 <phase_1>
+     0x0000000000400e3f <+159>:	call   0x4015c4 <phase_defused>
+     0x0000000000400e44 <+164>:	mov    $0x4023a8,%edi
+     0x0000000000400e49 <+169>:	call   0x400b10 <puts@plt>
+     0x0000000000400e4e <+174>:	call   0x40149e <read_line>
+     0x0000000000400e53 <+179>:	mov    %rax,%rdi
+     0x0000000000400e56 <+182>:	call   0x400efc <phase_2>
+     0x0000000000400e5b <+187>:	call   0x4015c4 <phase_defused>
+     0x0000000000400e60 <+192>:	mov    $0x4022ed,%edi
+     0x0000000000400e65 <+197>:	call   0x400b10 <puts@plt>
+     0x0000000000400e6a <+202>:	call   0x40149e <read_line>
+     0x0000000000400e6f <+207>:	mov    %rax,%rdi
+     0x0000000000400e72 <+210>:	call   0x400f43 <phase_3>
+     0x0000000000400e77 <+215>:	call   0x4015c4 <phase_defused>
+     0x0000000000400e7c <+220>:	mov    $0x40230b,%edi
+     0x0000000000400e81 <+225>:	call   0x400b10 <puts@plt>
+     0x0000000000400e86 <+230>:	call   0x40149e <read_line>
+     0x0000000000400e8b <+235>:	mov    %rax,%rdi
+     0x0000000000400e8e <+238>:	call   0x40100c <phase_4>
+     0x0000000000400e93 <+243>:	call   0x4015c4 <phase_defused>
+     0x0000000000400e98 <+248>:	mov    $0x4023d8,%edi
+     0x0000000000400e9d <+253>:	call   0x400b10 <puts@plt>
+     0x0000000000400ea2 <+258>:	call   0x40149e <read_line>
+     0x0000000000400ea7 <+263>:	mov    %rax,%rdi
+     0x0000000000400eaa <+266>:	call   0x401062 <phase_5>
+     0x0000000000400eaf <+271>:	call   0x4015c4 <phase_defused>
+     0x0000000000400eb4 <+276>:	mov    $0x40231a,%edi
+     0x0000000000400eb9 <+281>:	call   0x400b10 <puts@plt>
+     0x0000000000400ebe <+286>:	call   0x40149e <read_line>
+     0x0000000000400ec3 <+291>:	mov    %rax,%rdi
+     0x0000000000400ec6 <+294>:	call   0x4010f4 <phase_6>
+     0x0000000000400ecb <+299>:	call   0x4015c4 <phase_defused>
+     0x0000000000400ed0 <+304>:	mov    $0x0,%eax
+     0x0000000000400ed5 <+309>:	pop    %rbx
+     0x0000000000400ed6 <+310>:	ret
+  End of assembler dump.
+  (gdb) si
+  0x0000000000400ee0 in phase_1 ()
+  (gdb) bt
+  #0  0x0000000000400ee0 in phase_1 ()
+  #1  0x0000000000400e3f in main (argc=<optimized out>, argv=<optimized out>) at bomb.c:74
+  (gdb) disassemble
+  Dump of assembler code for function phase_1:
+  => 0x0000000000400ee0 <+0>:	sub    $0x8,%rsp
+     0x0000000000400ee4 <+4>:	mov    $0x402400,%esi
+     0x0000000000400ee9 <+9>:	call   0x401338 <strings_not_equal>
+     0x0000000000400eee <+14>:	test   %eax,%eax
+     0x0000000000400ef0 <+16>:	je     0x400ef7 <phase_1+23>
+     0x0000000000400ef2 <+18>:	call   0x40143a <explode_bomb>
+     0x0000000000400ef7 <+23>:	add    $0x8,%rsp
+     0x0000000000400efb <+27>:	ret
+  End of assembler dump.
+  (gdb) si
+  0x0000000000400ee4 in phase_1 ()
+  (gdb) bt
+  #0  0x0000000000400ee4 in phase_1 ()
+  #1  0x0000000000400e3f in main (argc=<optimized out>, argv=<optimized out>) at bomb.c:74
+  (gdb) disassemble
+  Dump of assembler code for function phase_1:
+     0x0000000000400ee0 <+0>:	sub    $0x8,%rsp
+  => 0x0000000000400ee4 <+4>:	mov    $0x402400,%esi
+     0x0000000000400ee9 <+9>:	call   0x401338 <strings_not_equal>
+     0x0000000000400eee <+14>:	test   %eax,%eax
+     0x0000000000400ef0 <+16>:	je     0x400ef7 <phase_1+23>
+     0x0000000000400ef2 <+18>:	call   0x40143a <explode_bomb>
+     0x0000000000400ef7 <+23>:	add    $0x8,%rsp
+     0x0000000000400efb <+27>:	ret
+  End of assembler dump.
+  (gdb) si
+  0x0000000000400ee9 in phase_1 ()
+  (gdb) disassemble
+  Dump of assembler code for function phase_1:
+     0x0000000000400ee0 <+0>:	sub    $0x8,%rsp
+     0x0000000000400ee4 <+4>:	mov    $0x402400,%esi
+  => 0x0000000000400ee9 <+9>:	call   0x401338 <strings_not_equal>
+     0x0000000000400eee <+14>:	test   %eax,%eax
+     0x0000000000400ef0 <+16>:	je     0x400ef7 <phase_1+23>
+     0x0000000000400ef2 <+18>:	call   0x40143a <explode_bomb>
+     0x0000000000400ef7 <+23>:	add    $0x8,%rsp
+     0x0000000000400efb <+27>:	ret
+  End of assembler dump.
+  (gdb) x/sb $esi
+  0x402400:	"Border relations with Canada have never been better."
+  (gdb) x/sb $rdi
+  0x603780 <input_strings>:	"Just for guessing, don't take it seriously!"
+  (gdb) disassemble
+  Dump of assembler code for function phase_1:
+     0x0000000000400ee0 <+0>:	sub    $0x8,%rsp
+     0x0000000000400ee4 <+4>:	mov    $0x402400,%esi
+  => 0x0000000000400ee9 <+9>:	call   0x401338 <strings_not_equal>
+     0x0000000000400eee <+14>:	test   %eax,%eax
+     0x0000000000400ef0 <+16>:	je     0x400ef7 <phase_1+23>
+     0x0000000000400ef2 <+18>:	call   0x40143a <explode_bomb>
+     0x0000000000400ef7 <+23>:	add    $0x8,%rsp
+     0x0000000000400efb <+27>:	ret
+  End of assembler dump.
+  (gdb) si
+  0x0000000000401338 in strings_not_equal ()
+  (gdb) bt
+  #0  0x0000000000401338 in strings_not_equal ()
+  #1  0x0000000000400eee in phase_1 ()
+  #2  0x0000000000400e3f in main (argc=<optimized out>, argv=<optimized out>) at bomb.c:74
+  (gdb) disassemble
+  Dump of assembler code for function strings_not_equal:
+  => 0x0000000000401338 <+0>:	push   %r12
+     0x000000000040133a <+2>:	push   %rbp
+     0x000000000040133b <+3>:	push   %rbx
+     0x000000000040133c <+4>:	mov    %rdi,%rbx
+     0x000000000040133f <+7>:	mov    %rsi,%rbp
+     0x0000000000401342 <+10>:	call   0x40131b <string_length>
+     0x0000000000401347 <+15>:	mov    %eax,%r12d
+     0x000000000040134a <+18>:	mov    %rbp,%rdi
+     0x000000000040134d <+21>:	call   0x40131b <string_length>
+     0x0000000000401352 <+26>:	mov    $0x1,%edx
+     0x0000000000401357 <+31>:	cmp    %eax,%r12d
+     0x000000000040135a <+34>:	jne    0x40139b <strings_not_equal+99>
+     0x000000000040135c <+36>:	movzbl (%rbx),%eax
+     0x000000000040135f <+39>:	test   %al,%al
+     0x0000000000401361 <+41>:	je     0x401388 <strings_not_equal+80>
+     0x0000000000401363 <+43>:	cmp    0x0(%rbp),%al
+     0x0000000000401366 <+46>:	je     0x401372 <strings_not_equal+58>
+     0x0000000000401368 <+48>:	jmp    0x40138f <strings_not_equal+87>
+     0x000000000040136a <+50>:	cmp    0x0(%rbp),%al
+     0x000000000040136d <+53>:	nopl   (%rax)
+     0x0000000000401370 <+56>:	jne    0x401396 <strings_not_equal+94>
+     0x0000000000401372 <+58>:	add    $0x1,%rbx
+     0x0000000000401376 <+62>:	add    $0x1,%rbp
+     0x000000000040137a <+66>:	movzbl (%rbx),%eax
+     0x000000000040137d <+69>:	test   %al,%al
+     0x000000000040137f <+71>:	jne    0x40136a <strings_not_equal+50>
+     0x0000000000401381 <+73>:	mov    $0x0,%edx
+     0x0000000000401386 <+78>:	jmp    0x40139b <strings_not_equal+99>
+     0x0000000000401388 <+80>:	mov    $0x0,%edx
+     0x000000000040138d <+85>:	jmp    0x40139b <strings_not_equal+99>
+     0x000000000040138f <+87>:	mov    $0x1,%edx
+     0x0000000000401394 <+92>:	jmp    0x40139b <strings_not_equal+99>
+     0x0000000000401396 <+94>:	mov    $0x1,%edx
+     0x000000000040139b <+99>:	mov    %edx,%eax
+     0x000000000040139d <+101>:	pop    %rbx
+     0x000000000040139e <+102>:	pop    %rbp
+     0x000000000040139f <+103>:	pop    %r12
+     0x00000000004013a1 <+105>:	ret
+  End of assembler dump.
+  (gdb) si
+  0x000000000040133a in strings_not_equal ()
+  (gdb)
+  0x000000000040133b in strings_not_equal ()
+  (gdb)
+  0x000000000040133c in strings_not_equal ()
+  (gdb) disassemble
+  Dump of assembler code for function strings_not_equal:
+     0x0000000000401338 <+0>:	push   %r12
+     0x000000000040133a <+2>:	push   %rbp
+     0x000000000040133b <+3>:	push   %rbx
+  => 0x000000000040133c <+4>:	mov    %rdi,%rbx
+     0x000000000040133f <+7>:	mov    %rsi,%rbp
+     0x0000000000401342 <+10>:	call   0x40131b <string_length>
+     0x0000000000401347 <+15>:	mov    %eax,%r12d
+     0x000000000040134a <+18>:	mov    %rbp,%rdi
+     0x000000000040134d <+21>:	call   0x40131b <string_length>
+     0x0000000000401352 <+26>:	mov    $0x1,%edx
+     0x0000000000401357 <+31>:	cmp    %eax,%r12d
+     0x000000000040135a <+34>:	jne    0x40139b <strings_not_equal+99>
+     0x000000000040135c <+36>:	movzbl (%rbx),%eax
+     0x000000000040135f <+39>:	test   %al,%al
+     0x0000000000401361 <+41>:	je     0x401388 <strings_not_equal+80>
+     0x0000000000401363 <+43>:	cmp    0x0(%rbp),%al
+     0x0000000000401366 <+46>:	je     0x401372 <strings_not_equal+58>
+     0x0000000000401368 <+48>:	jmp    0x40138f <strings_not_equal+87>
+     0x000000000040136a <+50>:	cmp    0x0(%rbp),%al
+     0x000000000040136d <+53>:	nopl   (%rax)
+     0x0000000000401370 <+56>:	jne    0x401396 <strings_not_equal+94>
+     0x0000000000401372 <+58>:	add    $0x1,%rbx
+     0x0000000000401376 <+62>:	add    $0x1,%rbp
+     0x000000000040137a <+66>:	movzbl (%rbx),%eax
+     0x000000000040137d <+69>:	test   %al,%al
+     0x000000000040137f <+71>:	jne    0x40136a <strings_not_equal+50>
+     0x0000000000401381 <+73>:	mov    $0x0,%edx
+     0x0000000000401386 <+78>:	jmp    0x40139b <strings_not_equal+99>
+     0x0000000000401388 <+80>:	mov    $0x0,%edx
+     0x000000000040138d <+85>:	jmp    0x40139b <strings_not_equal+99>
+     0x000000000040138f <+87>:	mov    $0x1,%edx
+     0x0000000000401394 <+92>:	jmp    0x40139b <strings_not_equal+99>
+     0x0000000000401396 <+94>:	mov    $0x1,%edx
+     0x000000000040139b <+99>:	mov    %edx,%eax
+     0x000000000040139d <+101>:	pop    %rbx
+     0x000000000040139e <+102>:	pop    %rbp
+     0x000000000040139f <+103>:	pop    %r12
+     0x00000000004013a1 <+105>:	ret
+  End of assembler dump.
+  (gdb) si
+  0x000000000040133f in strings_not_equal ()
+  (gdb)
+  0x0000000000401342 in strings_not_equal ()
+  (gdb)
+  0x000000000040131b in string_length ()
+  (gdb) disassemble
+  Dump of assembler code for function string_length:
+  => 0x000000000040131b <+0>:	cmpb   $0x0,(%rdi)
+     0x000000000040131e <+3>:	je     0x401332 <string_length+23>
+     0x0000000000401320 <+5>:	mov    %rdi,%rdx
+     0x0000000000401323 <+8>:	add    $0x1,%rdx
+     0x0000000000401327 <+12>:	mov    %edx,%eax
+     0x0000000000401329 <+14>:	sub    %edi,%eax
+     0x000000000040132b <+16>:	cmpb   $0x0,(%rdx)
+     0x000000000040132e <+19>:	jne    0x401323 <string_length+8>
+     0x0000000000401330 <+21>:	repz ret
+     0x0000000000401332 <+23>:	mov    $0x0,%eax
+     0x0000000000401337 <+28>:	ret
+  End of assembler dump.
+  (gdb) f
+  #0  0x000000000040131b in string_length ()
+  (gdb) disassemble
+  Dump of assembler code for function string_length:
+  => 0x000000000040131b <+0>:	cmpb   $0x0,(%rdi)
+     0x000000000040131e <+3>:	je     0x401332 <string_length+23>
+     0x0000000000401320 <+5>:	mov    %rdi,%rdx
+     0x0000000000401323 <+8>:	add    $0x1,%rdx
+     0x0000000000401327 <+12>:	mov    %edx,%eax
+     0x0000000000401329 <+14>:	sub    %edi,%eax
+     0x000000000040132b <+16>:	cmpb   $0x0,(%rdx)
+     0x000000000040132e <+19>:	jne    0x401323 <string_length+8>
+     0x0000000000401330 <+21>:	repz ret
+     0x0000000000401332 <+23>:	mov    $0x0,%eax
+     0x0000000000401337 <+28>:	ret
+  End of assembler dump.
+  (gdb) finish
+  Run till exit from #0  0x000000000040131b in string_length ()
+  0x0000000000401347 in strings_not_equal ()
+  (gdb) disassemble
+  Dump of assembler code for function strings_not_equal:
+     0x0000000000401338 <+0>:	push   %r12
+     0x000000000040133a <+2>:	push   %rbp
+     0x000000000040133b <+3>:	push   %rbx
+     0x000000000040133c <+4>:	mov    %rdi,%rbx
+     0x000000000040133f <+7>:	mov    %rsi,%rbp
+     0x0000000000401342 <+10>:	call   0x40131b <string_length>
+  => 0x0000000000401347 <+15>:	mov    %eax,%r12d
+     0x000000000040134a <+18>:	mov    %rbp,%rdi
+     0x000000000040134d <+21>:	call   0x40131b <string_length>
+     0x0000000000401352 <+26>:	mov    $0x1,%edx
+     0x0000000000401357 <+31>:	cmp    %eax,%r12d
+     0x000000000040135a <+34>:	jne    0x40139b <strings_not_equal+99>
+     0x000000000040135c <+36>:	movzbl (%rbx),%eax
+     0x000000000040135f <+39>:	test   %al,%al
+     0x0000000000401361 <+41>:	je     0x401388 <strings_not_equal+80>
+     0x0000000000401363 <+43>:	cmp    0x0(%rbp),%al
+     0x0000000000401366 <+46>:	je     0x401372 <strings_not_equal+58>
+     0x0000000000401368 <+48>:	jmp    0x40138f <strings_not_equal+87>
+     0x000000000040136a <+50>:	cmp    0x0(%rbp),%al
+     0x000000000040136d <+53>:	nopl   (%rax)
+     0x0000000000401370 <+56>:	jne    0x401396 <strings_not_equal+94>
+     0x0000000000401372 <+58>:	add    $0x1,%rbx
+     0x0000000000401376 <+62>:	add    $0x1,%rbp
+     0x000000000040137a <+66>:	movzbl (%rbx),%eax
+     0x000000000040137d <+69>:	test   %al,%al
+     0x000000000040137f <+71>:	jne    0x40136a <strings_not_equal+50>
+     0x0000000000401381 <+73>:	mov    $0x0,%edx
+     0x0000000000401386 <+78>:	jmp    0x40139b <strings_not_equal+99>
+     0x0000000000401388 <+80>:	mov    $0x0,%edx
+     0x000000000040138d <+85>:	jmp    0x40139b <strings_not_equal+99>
+     0x000000000040138f <+87>:	mov    $0x1,%edx
+     0x0000000000401394 <+92>:	jmp    0x40139b <strings_not_equal+99>
+     0x0000000000401396 <+94>:	mov    $0x1,%edx
+     0x000000000040139b <+99>:	mov    %edx,%eax
+     0x000000000040139d <+101>:	pop    %rbx
+     0x000000000040139e <+102>:	pop    %rbp
+     0x000000000040139f <+103>:	pop    %r12
+     0x00000000004013a1 <+105>:	ret
+  End of assembler dump.
+  (gdb) p $eax
+  $2 = 43
+  (gdb) si
+  0x000000000040134a in strings_not_equal ()
+  (gdb) disassemble
+  Dump of assembler code for function strings_not_equal:
+     0x0000000000401338 <+0>:	push   %r12
+     0x000000000040133a <+2>:	push   %rbp
+     0x000000000040133b <+3>:	push   %rbx
+     0x000000000040133c <+4>:	mov    %rdi,%rbx
+     0x000000000040133f <+7>:	mov    %rsi,%rbp
+     0x0000000000401342 <+10>:	call   0x40131b <string_length>
+     0x0000000000401347 <+15>:	mov    %eax,%r12d
+  => 0x000000000040134a <+18>:	mov    %rbp,%rdi
+     0x000000000040134d <+21>:	call   0x40131b <string_length>
+     0x0000000000401352 <+26>:	mov    $0x1,%edx
+     0x0000000000401357 <+31>:	cmp    %eax,%r12d
+     0x000000000040135a <+34>:	jne    0x40139b <strings_not_equal+99>
+     0x000000000040135c <+36>:	movzbl (%rbx),%eax
+     0x000000000040135f <+39>:	test   %al,%al
+     0x0000000000401361 <+41>:	je     0x401388 <strings_not_equal+80>
+     0x0000000000401363 <+43>:	cmp    0x0(%rbp),%al
+     0x0000000000401366 <+46>:	je     0x401372 <strings_not_equal+58>
+     0x0000000000401368 <+48>:	jmp    0x40138f <strings_not_equal+87>
+     0x000000000040136a <+50>:	cmp    0x0(%rbp),%al
+     0x000000000040136d <+53>:	nopl   (%rax)
+     0x0000000000401370 <+56>:	jne    0x401396 <strings_not_equal+94>
+     0x0000000000401372 <+58>:	add    $0x1,%rbx
+     0x0000000000401376 <+62>:	add    $0x1,%rbp
+     0x000000000040137a <+66>:	movzbl (%rbx),%eax
+     0x000000000040137d <+69>:	test   %al,%al
+     0x000000000040137f <+71>:	jne    0x40136a <strings_not_equal+50>
+     0x0000000000401381 <+73>:	mov    $0x0,%edx
+     0x0000000000401386 <+78>:	jmp    0x40139b <strings_not_equal+99>
+     0x0000000000401388 <+80>:	mov    $0x0,%edx
+     0x000000000040138d <+85>:	jmp    0x40139b <strings_not_equal+99>
+     0x000000000040138f <+87>:	mov    $0x1,%edx
+     0x0000000000401394 <+92>:	jmp    0x40139b <strings_not_equal+99>
+     0x0000000000401396 <+94>:	mov    $0x1,%edx
+     0x000000000040139b <+99>:	mov    %edx,%eax
+     0x000000000040139d <+101>:	pop    %rbx
+     0x000000000040139e <+102>:	pop    %rbp
+     0x000000000040139f <+103>:	pop    %r12
+     0x00000000004013a1 <+105>:	ret
+  End of assembler dump.
+  (gdb) si
+  0x000000000040134d in strings_not_equal ()
+  (gdb)
+  0x000000000040131b in string_length ()
+  (gdb) disassemble
+  Dump of assembler code for function string_length:
+  => 0x000000000040131b <+0>:	cmpb   $0x0,(%rdi)
+     0x000000000040131e <+3>:	je     0x401332 <string_length+23>
+     0x0000000000401320 <+5>:	mov    %rdi,%rdx
+     0x0000000000401323 <+8>:	add    $0x1,%rdx
+     0x0000000000401327 <+12>:	mov    %edx,%eax
+     0x0000000000401329 <+14>:	sub    %edi,%eax
+     0x000000000040132b <+16>:	cmpb   $0x0,(%rdx)
+     0x000000000040132e <+19>:	jne    0x401323 <string_length+8>
+     0x0000000000401330 <+21>:	repz ret
+     0x0000000000401332 <+23>:	mov    $0x0,%eax
+     0x0000000000401337 <+28>:	ret
+  End of assembler dump.
+  (gdb) bt
+  #0  0x000000000040131b in string_length ()
+  #1  0x0000000000401352 in strings_not_equal ()
+  #2  0x0000000000400eee in phase_1 ()
+  #3  0x0000000000400e3f in main (argc=<optimized out>, argv=<optimized out>) at bomb.c:74
+  (gdb) finish
+  Run till exit from #0  0x000000000040131b in string_length ()
+  0x0000000000401352 in strings_not_equal ()
+  (gdb) disassemble
+  Dump of assembler code for function strings_not_equal:
+     0x0000000000401338 <+0>:	push   %r12
+     0x000000000040133a <+2>:	push   %rbp
+     0x000000000040133b <+3>:	push   %rbx
+     0x000000000040133c <+4>:	mov    %rdi,%rbx
+     0x000000000040133f <+7>:	mov    %rsi,%rbp
+     0x0000000000401342 <+10>:	call   0x40131b <string_length>
+     0x0000000000401347 <+15>:	mov    %eax,%r12d
+     0x000000000040134a <+18>:	mov    %rbp,%rdi
+     0x000000000040134d <+21>:	call   0x40131b <string_length>
+  => 0x0000000000401352 <+26>:	mov    $0x1,%edx
+     0x0000000000401357 <+31>:	cmp    %eax,%r12d
+     0x000000000040135a <+34>:	jne    0x40139b <strings_not_equal+99>
+     0x000000000040135c <+36>:	movzbl (%rbx),%eax
+     0x000000000040135f <+39>:	test   %al,%al
+     0x0000000000401361 <+41>:	je     0x401388 <strings_not_equal+80>
+     0x0000000000401363 <+43>:	cmp    0x0(%rbp),%al
+     0x0000000000401366 <+46>:	je     0x401372 <strings_not_equal+58>
+     0x0000000000401368 <+48>:	jmp    0x40138f <strings_not_equal+87>
+     0x000000000040136a <+50>:	cmp    0x0(%rbp),%al
+     0x000000000040136d <+53>:	nopl   (%rax)
+     0x0000000000401370 <+56>:	jne    0x401396 <strings_not_equal+94>
+     0x0000000000401372 <+58>:	add    $0x1,%rbx
+     0x0000000000401376 <+62>:	add    $0x1,%rbp
+     0x000000000040137a <+66>:	movzbl (%rbx),%eax
+     0x000000000040137d <+69>:	test   %al,%al
+     0x000000000040137f <+71>:	jne    0x40136a <strings_not_equal+50>
+     0x0000000000401381 <+73>:	mov    $0x0,%edx
+     0x0000000000401386 <+78>:	jmp    0x40139b <strings_not_equal+99>
+     0x0000000000401388 <+80>:	mov    $0x0,%edx
+     0x000000000040138d <+85>:	jmp    0x40139b <strings_not_equal+99>
+     0x000000000040138f <+87>:	mov    $0x1,%edx
+     0x0000000000401394 <+92>:	jmp    0x40139b <strings_not_equal+99>
+     0x0000000000401396 <+94>:	mov    $0x1,%edx
+     0x000000000040139b <+99>:	mov    %edx,%eax
+     0x000000000040139d <+101>:	pop    %rbx
+     0x000000000040139e <+102>:	pop    %rbp
+     0x000000000040139f <+103>:	pop    %r12
+     0x00000000004013a1 <+105>:	ret
+  End of assembler dump.
+  (gdb) bt
+  #0  0x0000000000401352 in strings_not_equal ()
+  #1  0x0000000000400eee in phase_1 ()
+  #2  0x0000000000400e3f in main (argc=<optimized out>, argv=<optimized out>) at bomb.c:74
+  (gdb) p $r12d
+  $3 = 43
+  (gdb) p $eax
+  $4 = 52
+  (gdb) x/sb $rdi
+  0x402400:	"Border relations with Canada have never been better."
+  (gdb) q
+  bash-5.1$ gdb -tui bomb
+  bash-5.1$
+  bash-5.1$ ./bomb
+  Welcome to my fiendish little bomb. You have 6 phases with
+  which to blow yourself up. Have a nice day!
+  Border relations with Canada have never been better.
+  Phase 1 defused. How about the next one?
+#+end_example
+
+Well, we have figured out the first bomb! Let's get moving to the next one!
+
+* Outro
