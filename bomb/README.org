@@ -782,7 +782,7 @@ phase-2's frame layout (in perspective of read_six_numbers):
 |----------------------------+---------------|
 | ...                        |               |
 
-*Hint*:
+*Hint:*
 #+begin_quote
 1. An array will be allocated in =phase_2=, which is used to stored numbers used in context.\\
    After calling =read_six_numbers=, the array will be filled with *7* numbers.
@@ -843,7 +843,6 @@ Same as above:
 #+end_quote
 
 ** Bomb 4
-
 
 Same as above:
 #+begin_src asm
@@ -1001,5 +1000,191 @@ Same as phase-2, here is the memory layout:
 |------------+------------------|
 | 0x10(%rsp) | 0x0(%rbx) masked |
 |------------+------------------|
+
+** Bomb 6
+
+*Easy:*
+#+name: phase6-preparation
+#+begin_src asm
+    401100:	49 89 e5                mov    %rsp,%r13
+    401103:	48 89 e6                mov    %rsp,%rsi
+    401106:	e8 51 03 00 00          callq  40145c <read_six_numbers>
+    40110b:	49 89 e6                mov    %rsp,%r14
+#+end_src
+Nothing speical, just prepares some registers. Those registers will be
+used in following parts.
+
+
+*Medium:*
+#+begin_src asm
+    40110e:	41 bc 00 00 00 00       mov    $0x0,%r12d
+    401114:	4c 89 ed                mov    %r13,%rbp
+    401117:	41 8b 45 00             mov    0x0(%r13),%eax
+    40111b:	83 e8 01                sub    $0x1,%eax
+    40111e:	83 f8 05                cmp    $0x5,%eax
+    401121:	76 05                   jbe    401128 <phase_6+0x34>
+    401123:	e8 12 03 00 00          callq  40143a <explode_bomb>
+    401128:	41 83 c4 01             add    $0x1,%r12d
+    40112c:	41 83 fc 06             cmp    $0x6,%r12d
+    401130:	74 21                   je     401153 <phase_6+0x5f>
+    401132:	44 89 e3                mov    %r12d,%ebx
+    401135:	48 63 c3                movslq %ebx,%rax
+    401138:	8b 04 84                mov    (%rsp,%rax,4),%eax
+    40113b:	39 45 00                cmp    %eax,0x0(%rbp)
+    40113e:	75 05                   jne    401145 <phase_6+0x51>
+    401140:	e8 f5 02 00 00          callq  40143a <explode_bomb>
+    401145:	83 c3 01                add    $0x1,%ebx
+    401148:	83 fb 05                cmp    $0x5,%ebx
+    40114b:	7e e8                   jle    401135 <phase_6+0x41>
+    40114d:	49 83 c5 04             add    $0x4,%r13
+    401151:	eb c1                   jmp    401114 <phase_6+0x20>
+#+end_src
+
+Explanation:
+#+begin_quote
+1. As we can see, this whole part is a nested loop. It has two index counter:
+   one is %r12d and another is %ebx.
+2. In the outer loop, %r12d indicates the index of array of integers we inputed.
+   In the inner loop, %ebx is used to check whether the index reach the end of
+   the array.
+3. %r13 is an */address/*, which embodies the element in the array of integers.
+   It is initialized as the first number of the array.
+   It can be incremented by 4(for it is an address).
+4. The condition operations are /40111b and/ /40111e/. These two ops limit the
+   numeric array must be greater than 0 and less than or equal to 6
+   (/jbe/ is used to compare two unsigned integers!).
+5. This nested loop is a bit like /bubble sort/, but internal functionality
+   is a little different.
+#+end_quote
+
+*Easy:*
+#+begin_src asm
+    401153:	48 8d 74 24 18          lea    0x18(%rsp),%rsi
+    401158:	4c 89 f0                mov    %r14,%rax
+    40115b:	b9 07 00 00 00          mov    $0x7,%ecx
+    401160:	89 ca                   mov    %ecx,%edx
+    401162:	2b 10                   sub    (%rax),%edx
+    401164:	89 10                   mov    %edx,(%rax)
+    401166:	48 83 c0 04             add    $0x4,%rax
+    40116a:	48 39 f0                cmp    %rsi,%rax
+    40116d:	75 f1                   jne    401160 <phase_6+0x6c>
+#+end_src
+
+Explanation:
+#+begin_quote
+1. The whole part plays the role of an iterator.
+2. %r14 is the first of array(think of /std::begin(arr)/ in cpp),
+   and %rsi is a sentinel(/std::cend(arr)/).
+3. This functionality is like [].map((x) => (7-x)).
+#+end_quote
+
+*Hard:*
+#+begivn_src asm
+    40116f:	be 00 00 00 00          mov    $0x0,%esi
+    401174:	eb 21                   jmp    401197 <phase_6+0xa3>
+    401176:	48 8b 52 08             mov    0x8(%rdx),%rdx
+    40117a:	83 c0 01                add    $0x1,%eax
+    40117d:	39 c8                   cmp    %ecx,%eax
+    40117f:	75 f5                   jne    401176 <phase_6+0x82>
+    401181:	eb 05                   jmp    401188 <phase_6+0x94>
+    401183:	ba d0 32 60 00          mov    $0x6032d0,%edx
+    401188:	48 89 54 74 20          mov    %rdx,0x20(%rsp,%rsi,2)
+    40118d:	48 83 c6 04             add    $0x4,%rsi
+    401191:	48 83 fe 18             cmp    $0x18,%rsi
+    401195:	74 14                   je     4011ab <phase_6+0xb7>
+    401197:	8b 0c 34                mov    (%rsp,%rsi,1),%ecx
+    40119a:	83 f9 01                cmp    $0x1,%ecx
+    40119d:	7e e4                   jle    401183 <phase_6+0x8f>
+    40119f:	b8 01 00 00 00          mov    $0x1,%eax
+    4011a4:	ba d0 32 60 00          mov    $0x6032d0,%edx
+    4011a9:	eb cb                   jmp    401176 <phase_6+0x82>
+#+end_src
+
+Explanation:
+#+begin_quote
+1. The nodus of this part is what does /0x6032d0/ mean. To make sense of
+   this, we can use *disassemble* and *x* to look deep into it.
+2. By analyzing address /0x6032d0/, we can find that it is a linked list.
+   So this part puts each number to its corresponding postion of that
+   structure.
+3. *mov 0x8(%rdx),%rdx*? Think of */p = p->next/*.
+4. *0x20(%rsp,%rsi,2)* and *add $0x4,%rsi* indicate the offset is 8.
+5. This progress is loading each nubmer in turn into /$ecx/, and
+   incremente *$eax*, meantime repeat the operation *mov 0x8(%rdx),%rdx*,
+   until it can find the correct postion of current number in /$ecx/.
+#+end_quote
+
+Code in C:
+#+begin_src c
+  struct Node *p = node1;
+  unsigned curr = input[1];
+
+  if (curr == 1)
+     ; // do something
+
+  for (size_t i = 2; i <= 6; i++)
+  {
+     curr = input[i];
+     for (size_t j = 1; j < curr; p = p->next, j++)
+        ;  // work through
+     // do something
+  }
+#+end_src
+
+*Medium:*
+#+begin_src asm
+    4011ab:	48 8b 5c 24 20          mov    0x20(%rsp),%rbx
+    4011b0:	48 8d 44 24 28          lea    0x28(%rsp),%rax
+    4011b5:	48 8d 74 24 50          lea    0x50(%rsp),%rsi
+    4011ba:	48 89 d9                mov    %rbx,%rcx
+    4011bd:	48 8b 10                mov    (%rax),%rdx
+    4011c0:	48 89 51 08             mov    %rdx,0x8(%rcx)
+    4011c4:	48 83 c0 08             add    $0x8,%rax
+    4011c8:	48 39 f0                cmp    %rsi,%rax
+    4011cb:	74 05                   je     4011d2 <phase_6+0xde>
+    4011cd:	48 89 d1                mov    %rdx,%rcx
+    4011d0:	eb eb                   jmp    4011bd <phase_6+0xc9>
+    4011d2:	48 c7 42 08 00 00 00    movq   $0x0,0x8(%rdx)
+#+end_src
+
+#+begin_quote
+1. The value of /%rsi/ is equal to */std::cend()/*.
+2. In this case, we need use *x/12xg $rsp+0x20* to dig out the regularity of it.
+3. /mov/ and /lea/ is a bit different, so there exists /mov (%rax), $rcx/.
+4. This part re-organize the linked list by changing the node field /next/
+   to the address computed by our input.
+5. /4011d2/ is setting NULL to /0x8(%rdx)/ (end of linked list).
+#+end_quote
+
+*Easy:*
+#+begin_src asm
+    4011da:	bd 05 00 00 00          mov    $0x5,%ebp
+    4011df:	48 8b 43 08             mov    0x8(%rbx),%rax
+    4011e3:	8b 00                   mov    (%rax),%eax
+    4011e5:	39 03                   cmp    %eax,(%rbx)
+    4011e7:	7d 05                   jge    4011ee <phase_6+0xfa>
+    4011e9:	e8 4c 02 00 00          callq  40143a <explode_bomb>
+    4011ee:	48 8b 5b 08             mov    0x8(%rbx),%rbx
+    4011f2:	83 ed 01                sub    $0x1,%ebp
+    4011f5:	75 e8                   jne    4011df <phase_6+0xeb>
+#+end_src
+
+#+begin_quote
+1. /%rbx/ is equal to /0x20(%rsp)/ (the first node).
+2. /%ebp/ is a index counter.
+3. /4011df/ and /4011e3/ will compare the first column of following example, where
+   the right answer hide in.
+4. The answer should be converted to *7-x*.
+#+end_quote
+
+#+begin_example
+(gdb) x/24xw 0x6032d0
+0x6032d0 <node1>:	0x0000014c	0x00000001	0x006032e0	0x00000000
+0x6032e0 <node2>:	0x000000a8	0x00000002	0x006032f0	0x00000000
+0x6032f0 <node3>:	0x0000039c	0x00000003	0x00603300	0x00000000
+0x603300 <node4>:	0x000002b3	0x00000004	0x00603320	0x00000000
+0x603310 <node5>:	0x000001dd	0x00000005	0x00000000	0x00000000
+0x603320 <node6>:	0x000001bb	0x00000006	0x00603310	0x00000000
+#+end_example
 
 * Outro
