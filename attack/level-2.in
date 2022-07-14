@@ -1,6 +1,6 @@
-48 c7 c7 fa 97 b9 59 48 /* see level-2.d */
-c7 c4 98 dc 61 55 c3 00
+48 c7 c7 fa 97 b9 59 68 /* see level-2.d */
+ec 17 40 00 c3 00 00 00
 00 00 00 00 00 00 00 00
 00 00 00 00 00 00 00 00
-ec 17 40 00 00 00 00 00 /* address of touch2 */
+00 00 00 00 00 00 00 00
 78 dc 61 55 00 00 00 00 /* address of buf[BUFFER_SIZE] */
