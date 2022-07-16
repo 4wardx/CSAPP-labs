@@ -74,7 +74,7 @@ void test()
 00000000004017c0 <touch1>:
   4017c0:	48 83 ec 08          	sub    $0x8,%rsp
   4017c4:	c7 05 0e 2d 20 00 01 	movl   $0x1,0x202d0e(%rip)        # 6044dc <vlevel>
-  4017cb:	00 00 00 
+  4017cb:	00 00 00
   4017ce:	bf c5 30 40 00       	mov    $0x4030c5,%edi
   4017d3:	e8 e8 f4 ff ff       	call   400cc0 <puts@plt>
   4017d8:	bf 01 00 00 00       	mov    $0x1,%edi
@@ -110,7 +110,7 @@ void touch2(unsigned val)
   4017ec:	48 83 ec 08          	sub    $0x8,%rsp # memory alignment
   4017f0:	89 fa                	mov    %edi,%edx # argument into parameter
   4017f2:	c7 05 e0 2c 20 00 02 	movl   $0x2,0x202ce0(%rip)        # 6044dc <vlevel>
-  4017f9:	00 00 00 
+  4017f9:	00 00 00
   4017fc:	3b 3d e2 2c 20 00    	cmp    0x202ce2(%rip),%edi        # 6044e4 <cookie>
   401802:	75 20                	jne    401824 <touch2+0x38>
   401804:	be e8 30 40 00       	mov    $0x4030e8,%esi
@@ -171,13 +171,13 @@ void touch3(char *sval)
   401854:	41 89 fc             	mov    %edi,%r12d
   401857:	48 89 f5             	mov    %rsi,%rbp
   40185a:	64 48 8b 04 25 28 00 	mov    %fs:0x28,%rax
-  401861:	00 00 
+  401861:	00 00
   401863:	48 89 44 24 78       	mov    %rax,0x78(%rsp)
   401868:	31 c0                	xor    %eax,%eax
   40186a:	e8 41 f5 ff ff       	call   400db0 <random@plt>
   40186f:	48 89 c1             	mov    %rax,%rcx
   401872:	48 ba 0b d7 a3 70 3d 	movabs $0xa3d70a3d70a3d70b,%rdx
-  401879:	0a d7 a3 
+  401879:	0a d7 a3
   40187c:	48 f7 ea             	imul   %rdx
   40187f:	48 01 ca             	add    %rcx,%rdx
   401882:	48 c1 fa 06          	sar    $0x6,%rdx
@@ -205,20 +205,20 @@ void touch3(char *sval)
   4018d9:	0f b6 c0             	movzbl %al,%eax
   4018dc:	48 8b 74 24 78       	mov    0x78(%rsp),%rsi
   4018e1:	64 48 33 34 25 28 00 	xor    %fs:0x28,%rsi
-  4018e8:	00 00 
+  4018e8:	00 00
   4018ea:	74 05                	je     4018f1 <hexmatch+0xa5>
   4018ec:	e8 ef f3 ff ff       	call   400ce0 <__stack_chk_fail@plt>
   4018f1:	48 83 ec 80          	sub    $0xffffffffffffff80,%rsp
   4018f5:	5b                   	pop    %rbx
   4018f6:	5d                   	pop    %rbp
   4018f7:	41 5c                	pop    %r12
-  4018f9:	c3                   	ret    
+  4018f9:	c3                   	ret
 
 00000000004018fa <touch3>:
   4018fa:	53                   	push   %rbx
   4018fb:	48 89 fb             	mov    %rdi,%rbx
   4018fe:	c7 05 d4 2b 20 00 03 	movl   $0x3,0x202bd4(%rip)        # 6044dc <vlevel>
-  401905:	00 00 00 
+  401905:	00 00 00
   401908:	48 89 fe             	mov    %rdi,%rsi
   40190b:	8b 3d d3 2b 20 00    	mov    0x202bd3(%rip),%edi        # 6044e4 <cookie>
   401911:	e8 36 ff ff ff       	call   40184c <hexmatch>
@@ -248,8 +248,11 @@ void touch3(char *sval)
 To jump to =touch3=, we have several different ways to make it.
 
 #+begin_quote
-1. If we decide to use =pushq= and =ret=, then we will fall in trouble, because =hexmatch=
-   consists of lots of =pushq= which can eliminate our data stored in stack(look deep in /=%rsp=/).
+1. If we decide to use =pushq= and =ret=, then we will fall in trouble, because we only have
+   0x28 bytes for exploit code, and  =touch3= use a =pushq=, which can eliminate our data
+   stored in stack(look deep in /=%rsp=/). After entered =touch3=, we must ensure the address
+   stored our cookie must be still alive. (We *ONLY* have 0x28 bytes! If we have more than this,
+   maybe we can let this method works very well, but, this is the rule.)
 2. Anyway, however, =movq= can also emulate what does =pushq= do, just use it.
 3. Another way, we can compute and place our data in stack with good caution, so that only =movq= is needed.
 #+end_quote
